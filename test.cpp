@@ -94,8 +94,11 @@ public:
                 {
                     ++j;
                 }
-                order[i] = a.order[j];
+//                order[i] = a.order[j];
+                order[j] = b.order[i];
+
             }
+
         }
         return Tour(order);
     }
@@ -146,7 +149,7 @@ public:
     void sort()
     {
         std::sort(tours.begin(), tours.end(), [](const Tour &a, const Tour &b)
-                  { return a.fitness < b.fitness; });
+        { return a.fitness < b.fitness; });
     }
 
     void evolve()
@@ -163,6 +166,22 @@ public:
         tours = newTours;
         sort();
     }
+
+//    void evolve()
+//    {
+//        vector<Tour> newTours(POPULATION_SIZE);
+//        newTours[0] = tours[0]; // Keep the fittest from the previous generation
+//        for (int i = 1; i < POPULATION_SIZE; ++i)
+//        {
+//            Tour parent1 = selectParent();
+//            Tour parent2 = selectParent();
+//            Tour child = crossover(parent1, parent2);
+//            child.mutate();
+//            newTours[i] = child;
+//        }
+//        tours = newTours;
+//        sort();
+//    }
 
     Tour selectParent()
     {
