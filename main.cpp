@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <ctime>
 #include <algorithm>
+//#include <omp.h>
+#include <chrono>
 
 using namespace std;
 
@@ -98,6 +100,10 @@ public:
 };
 
 int main() {
+
+    // Starting the timer
+    auto start = std::chrono::high_resolution_clock::now();
+
     srand(time(nullptr));
 
     Population population;
@@ -108,6 +114,15 @@ int main() {
     }
 
     cout << "Best fitness: " << population.getBestFitness() << endl;
+
+    // Ending the timer
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // Calculating elapsed time in milliseconds
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+    // Print the elapsed time
+    cout << "Execution time: " << duration << " ms" << endl;
 
     return 0;
 }

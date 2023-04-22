@@ -4,6 +4,8 @@
 #include <ctime>
 #include <cstdlib>
 #include <cmath>
+#include <omp.h>
+#include <chrono>
 
 const int POPULATION_SIZE = 100;
 const int NUM_GENERATIONS = 1000;
@@ -33,6 +35,7 @@ public:
 
     void calculateFitness() {
         double totalDistance = 0.0;
+        #pragma omp parallel for reduction(+:totalDistance)
         for (size_t i = 1; i < cities.size(); ++i) {
             totalDistance += std::hypot(cities[i].x - cities[i - 1].x,
                                         cities[i].y - cities[i - 1].y);
@@ -43,6 +46,8 @@ public:
     }
 };
 
+// Since the function does not involve any data dependencies or complex computations that could be parallelized,
+// there would be little benefit to parallelize the for loop. (unlesss the city vector is veryy large)
 std::vector<Route> initializePopulation(const std::vector<City>& cities) {
     std::vector<Route> population;
     for (int i = 0; i < POPULATION_SIZE; ++i) {
@@ -59,6 +64,7 @@ Route tournamentSelection(const std::vector<Route>& population) {
     return population[index1].fitness > population[index2].fitness ? population[index1] : population[index2];
 }
 
+// not parallelized, same reason as initializePopulation function
 Route crossover(const Route& parent1, const Route& parent2) {
     std::vector<City> childCities = parent1.cities;
     if (rand() / static_cast<double>(RAND_MAX) < CROSSOVER_RATE) {
@@ -75,6 +81,7 @@ Route crossover(const Route& parent1, const Route& parent2) {
 }
 
 void mutate(Route& route) {
+    #pragma omp parallel for
     for (size_t i = 0; i < route.cities.size(); ++i) {
         if (rand() / static_cast<double>(RAND_MAX) < MUTATION_RATE) {
             int index = rand() % route.cities.size();
@@ -85,6 +92,10 @@ void mutate(Route& route) {
 }
 
 int main() {
+
+    // Starting the timer
+    auto start = std::chrono::high_resolution_clock::now();
+
     srand(time(0));
 
     std::vector<City> cities = {
@@ -97,6 +108,7 @@ int main() {
 
     for (int generation = 0; generation < NUM_GENERATIONS; ++generation) {
         std::vector<Route> newPopulation;
+        #pragma omp parallel for
         for (int i = 0; i < POPULATION_SIZE; ++i) {
             Route parent1 = tournamentSelection(population);
             Route parent2 = tournamentSelection(population);
@@ -122,6 +134,15 @@ int main() {
     }
     std::cout << '(' << bestRoute.cities.front().x << ", " << bestRoute.cities.front().y << ")\n";
     std::cout << "Total distance: " << 1.0 / bestRoute.fitness << std::endl;
+
+    // Ending the timer
+    auto end = std::chrono::high_resolution_clock::now();
+
+    // Calculating elapsed time in milliseconds
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+    // Print the elapsed time
+    std::cout << "Execution time: " << duration << " ms" << std::endl;
 
     return 0;
 }
