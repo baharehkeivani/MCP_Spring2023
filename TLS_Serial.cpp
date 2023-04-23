@@ -1,3 +1,7 @@
+//
+// Created by zahra on 4/23/23.
+//
+
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -9,8 +13,7 @@
 
 const int POPULATION_SIZE = 100;
 const int NUM_GENERATIONS = 1000;
-//const int NUM_GENERATIONS = 500;
-//const int NUM_CITIES = 10;
+const int NUM_CITIES = 10;
 const float MUTATION_RATE = 0.1;
 const float CROSSOVER_RATE = 0.8;
 
@@ -18,16 +21,9 @@ class City {
 public:
     int x, y;
 
-//    City(int x, int y) : x(x), y(y) {}
-    City(int x, int y) : x(x), y(y) {
-        if (!this) {
-            std::cerr << "Error: null pointer passed to City constructor." << std::endl;
-            exit(1);
-        }
-    }
+    City(int x, int y) : x(x), y(y) {}
 
-
-    bool operator==(const City &other) const {
+    bool operator==(const City& other) const {
         return x == other.x && y == other.y;
     }
 };
@@ -37,13 +33,12 @@ public:
     std::vector<City> cities;
     double fitness;
 
-    Route(const std::vector<City> &cities) : cities(cities) {
+    Route(const std::vector<City>& cities) : cities(cities) {
         calculateFitness();
     }
 
     void calculateFitness() {
         double totalDistance = 0.0;
-#pragma omp parallel for reduction(+:totalDistance)
         for (size_t i = 1; i < cities.size(); ++i) {
             totalDistance += std::hypot(cities[i].x - cities[i - 1].x,
                                         cities[i].y - cities[i - 1].y);
@@ -56,7 +51,7 @@ public:
 
 // Since the function does not involve any data dependencies or complex computations that could be parallelized,
 // there would be little benefit to parallelize the for loop. (unlesss the city vector is veryy large)
-std::vector<Route> initializePopulation(const std::vector<City> &cities) {
+std::vector<Route> initializePopulation(const std::vector<City>& cities) {
     std::vector<Route> population;
     for (int i = 0; i < POPULATION_SIZE; ++i) {
         std::vector<City> shuffledCities = cities;
@@ -66,14 +61,14 @@ std::vector<Route> initializePopulation(const std::vector<City> &cities) {
     return population;
 }
 
-Route tournamentSelection(const std::vector<Route> &population) {
+Route tournamentSelection(const std::vector<Route>& population) {
     int index1 = rand() % population.size();
     int index2 = rand() % population.size();
     return population[index1].fitness > population[index2].fitness ? population[index1] : population[index2];
 }
 
 // not parallelized, same reason as initializePopulation function
-Route crossover(const Route &parent1, const Route &parent2) {
+Route crossover(const Route& parent1, const Route& parent2) {
     std::vector<City> childCities = parent1.cities;
     if (rand() / static_cast<double>(RAND_MAX) < CROSSOVER_RATE) {
         int startPos = rand() % childCities.size();
@@ -88,35 +83,17 @@ Route crossover(const Route &parent1, const Route &parent2) {
     return Route(childCities);
 }
 
-//void mutate(Route& route) {
-//    for (size_t i = 0; i < route.cities.size(); ++i) {
-//        if (rand() / static_cast<double>(RAND_MAX) < MUTATION_RATE) {
-//            int index = rand() % route.cities.size();
-//            std::swap(route.cities[i], route.cities[index]);
-//        }
-//    }
-//    route.calculateFitness();
-//}
-
-void mutate(Route &route) {
-#pragma omp parallel
-    {
-        unsigned seed = static_cast<unsigned>(time(nullptr)) ^ omp_get_thread_num();
-        #pragma omp for
-        for (size_t i = 0; i < route.cities.size(); ++i) {
-            if (rand_r(&seed) / static_cast<double>(RAND_MAX) < MUTATION_RATE) {
-                int index = rand_r(&seed) % route.cities.size();
-                std::swap(route.cities[i], route.cities[index]);
-            }
+void mutate(Route& route) {
+    for (size_t i = 0; i < route.cities.size(); ++i) {
+        if (rand() / static_cast<double>(RAND_MAX) < MUTATION_RATE) {
+            int index = rand() % route.cities.size();
+            std::swap(route.cities[i], route.cities[index]);
         }
     }
     route.calculateFitness();
 }
 
 int main() {
-
-    // Set the number of threads to be used in the next parallel region
-    omp_set_num_threads(7);
 
     // Starting the timer
     auto start = std::chrono::high_resolution_clock::now();
@@ -171,45 +148,21 @@ int main() {
 
     std::vector<Route> population = initializePopulation(cities);
 
-//    for (int generation = 0; generation < NUM_GENERATIONS; ++generation) {
-//        std::vector<Route> newPopulation;
-//        for (int i = 0; i < POPULATION_SIZE; ++i) {
-//            Route parent1 = tournamentSelection(population);
-//            Route parent2 = tournamentSelection(population);
-//            Route child = crossover(parent1, parent2);
-//            mutate(child);
-//            newPopulation.push_back(child);
-//        }
-//        population = newPopulation;
-//    }
-
     for (int generation = 0; generation < NUM_GENERATIONS; ++generation) {
         std::vector<Route> newPopulation;
-        newPopulation.reserve(POPULATION_SIZE); // reserve space for new routes
-#pragma omp parallel
-        {
-            std::vector<Route> localPopulation;
-            localPopulation.reserve(POPULATION_SIZE / omp_get_num_threads()); // reserve space for each thread
-#pragma omp for
-            for (int i = 0; i < POPULATION_SIZE; ++i) {
-                Route parent1 = tournamentSelection(population);
-                Route parent2 = tournamentSelection(population);
-                Route child = crossover(parent1, parent2);
-                mutate(child);
-                localPopulation.push_back(child);
-            }
-#pragma omp critical
-            {
-                newPopulation.insert(newPopulation.end(), localPopulation.begin(), localPopulation.end());
-            }
+        for (int i = 0; i < POPULATION_SIZE; ++i) {
+            Route parent1 = tournamentSelection(population);
+            Route parent2 = tournamentSelection(population);
+            Route child = crossover(parent1, parent2);
+            mutate(child);
+            newPopulation.push_back(child);
         }
-        population = std::move(newPopulation);
+        population = newPopulation;
     }
-
 
     // Find the best route in the final population
     Route bestRoute = population[0];
-    for (const Route &route: population) {
+    for (const Route& route : population) {
         if (route.fitness > bestRoute.fitness) {
             bestRoute = route;
         }
@@ -217,7 +170,7 @@ int main() {
 
     // Print the best route and its total distance
     std::cout << "Best route: ";
-    for (const City &city: bestRoute.cities) {
+    for (const City& city : bestRoute.cities) {
         std::cout << '(' << city.x << ", " << city.y << ") -> ";
     }
     std::cout << '(' << bestRoute.cities.front().x << ", " << bestRoute.cities.front().y << ")\n";
