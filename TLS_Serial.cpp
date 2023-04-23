@@ -1,42 +1,44 @@
-//
-// Created by zahra on 4/23/23.
-//
-
+// Header files
 #include <iostream>
 #include <vector>
 #include <algorithm>
 #include <ctime>
 #include <cstdlib>
 #include <cmath>
-#include <omp.h>
 #include <chrono>
+#include <random>
 
+// Constants
 const int POPULATION_SIZE = 100;
 const int NUM_GENERATIONS = 1000;
-const int NUM_CITIES = 10;
 const float MUTATION_RATE = 0.1;
 const float CROSSOVER_RATE = 0.8;
 
+// City class
 class City {
 public:
     int x, y;
 
     City(int x, int y) : x(x), y(y) {}
 
+    // Overloading the == operator to compare cities
     bool operator==(const City& other) const {
         return x == other.x && y == other.y;
     }
 };
 
+// Route class
 class Route {
 public:
     std::vector<City> cities;
     double fitness;
 
     Route(const std::vector<City>& cities) : cities(cities) {
+        // Calculate fitness of the route
         calculateFitness();
     }
 
+    // Function to calculate fitness of the route
     void calculateFitness() {
         double totalDistance = 0.0;
         for (size_t i = 1; i < cities.size(); ++i) {
@@ -49,57 +51,69 @@ public:
     }
 };
 
-// Since the function does not involve any data dependencies or complex computations that could be parallelized,
-// there would be little benefit to parallelize the for loop. (unlesss the city vector is veryy large)
+// Function to initialize the population of routes
 std::vector<Route> initializePopulation(const std::vector<City>& cities) {
     std::vector<Route> population;
     for (int i = 0; i < POPULATION_SIZE; ++i) {
+        // Shuffle the cities randomly
         std::vector<City> shuffledCities = cities;
-        std::random_shuffle(shuffledCities.begin(), shuffledCities.end());
+        std::shuffle(shuffledCities.begin(), shuffledCities.end(), std::default_random_engine{std::random_device{}()});
+        // Add the shuffled cities to the population as a new route
         population.emplace_back(shuffledCities);
     }
     return population;
 }
 
+// Function to perform tournament selection of routes
 Route tournamentSelection(const std::vector<Route>& population) {
+    // Select two random routes from the population
     int index1 = rand() % population.size();
     int index2 = rand() % population.size();
+    // Return the fittest of the two routes
     return population[index1].fitness > population[index2].fitness ? population[index1] : population[index2];
 }
 
-// not parallelized, same reason as initializePopulation function
 Route crossover(const Route& parent1, const Route& parent2) {
+    // Create a child route that is a copy of parent1
     std::vector<City> childCities = parent1.cities;
+    // With a certain probability, perform crossover between parent1 and parent2
     if (rand() / static_cast<double>(RAND_MAX) < CROSSOVER_RATE) {
+        // Choose a random start and end point for the crossover
         int startPos = rand() % childCities.size();
         int endPos = rand() % childCities.size();
         if (startPos > endPos) std::swap(startPos, endPos);
-
+        // Swap the cities between the start and end points in the child route with those in parent2
         for (int i = startPos; i <= endPos; ++i) {
             auto it = std::find(childCities.begin(), childCities.end(), parent2.cities[i]);
             std::swap(*it, childCities[i]);
         }
     }
+    // Return the resulting child route
     return Route(childCities);
 }
 
+
 void mutate(Route& route) {
+    // For each city in the route, with a certain probability, swap it with another random city
     for (size_t i = 0; i < route.cities.size(); ++i) {
         if (rand() / static_cast<double>(RAND_MAX) < MUTATION_RATE) {
             int index = rand() % route.cities.size();
             std::swap(route.cities[i], route.cities[index]);
         }
     }
+    // Recalculate the fitness of the route after mutation
     route.calculateFitness();
 }
+
 
 int main() {
 
     // Starting the timer
-    auto start = std::chrono::high_resolution_clock::now();
+    auto start = std::chrono::high_resolution_clock::now(); // get the current time
 
-    srand(time(0));
+    srand(time(0)); // seed the random number generator
 
+    // Define a vector of City objects with their x and y coordinates
     std::vector<City> cities = {
             {60,  200},
             {180, 200},
@@ -145,18 +159,26 @@ int main() {
             {120, 120},
             {160, 120},
     };
-
+    // Initialize a vector of Route objects with the initial population
     std::vector<Route> population = initializePopulation(cities);
 
+    // Loop through a set number of generations
     for (int generation = 0; generation < NUM_GENERATIONS; ++generation) {
+        // Initialize a new population vector
         std::vector<Route> newPopulation;
+        // Loop through the current population
         for (int i = 0; i < POPULATION_SIZE; ++i) {
+            // Select two parents using tournament selection
             Route parent1 = tournamentSelection(population);
             Route parent2 = tournamentSelection(population);
+            // Create a new child by crossing over the two parents
             Route child = crossover(parent1, parent2);
+            // Mutate the child
             mutate(child);
+            // Add the child to the new population
             newPopulation.push_back(child);
         }
+        // Replace the old population with the new one
         population = newPopulation;
     }
 
@@ -177,13 +199,13 @@ int main() {
     std::cout << "Total distance: " << 1.0 / bestRoute.fitness << std::endl;
 
     // Ending the timer
-    auto end = std::chrono::high_resolution_clock::now();
+    auto end = std::chrono::high_resolution_clock::now(); // get the current time
 
     // Calculating elapsed time in milliseconds
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
     // Print the elapsed time
-    std::cout << "Execution time: " << duration << " ms" << std::endl;
+    std::cout << "Execution time: " << duration << " ms" << std::endl; // print the elapsed time
 
     return 0;
 }
