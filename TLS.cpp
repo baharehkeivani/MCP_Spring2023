@@ -1,5 +1,6 @@
 // Header files
 #include <iostream>
+#include <random>
 #include <vector>
 #include <algorithm>
 #include <ctime>
@@ -58,18 +59,19 @@ public:
     }
 };
 
-// Since the function does not involve any data dependencies or complex computations that could be parallelized,
-// there would be little benefit to parallelize the for loop. (unlesss the city vector is veryy large)
 // Function to initialize a population of random routes
 std::vector<Route> initializePopulation(const std::vector<City> &cities) {
     std::vector<Route> population;
+    population.reserve(POPULATION_SIZE); // Optional: reserve memory for the vector
+    #pragma omp parallel for
     // Loop to create a population of random routes
     for (int i = 0; i < POPULATION_SIZE; ++i) {
+        // Declare a private copy of shuffledCities for each thread
         std::vector<City> shuffledCities = cities;
         // Randomly shuffle the cities
-        std::random_shuffle(shuffledCities.begin(), shuffledCities.end());
+        std::shuffle(shuffledCities.begin(), shuffledCities.end(), std::mt19937_64(std::random_device()()));
         // Add the shuffled cities to the population
-        population.emplace_back(shuffledCities);
+        population.emplace_back(Route(shuffledCities));
     }
     return population;
 }
@@ -83,7 +85,8 @@ Route tournamentSelection(const std::vector<Route> &population) {
     return population[index1].fitness > population[index2].fitness ? population[index1] : population[index2];
 }
 
-// not parallelized, same reason as initializePopulation function
+// parallelizing this function created additional overhead, based on input's size and number of threads its best to
+// leave it serial
 // Function to perform crossover between two routes
 Route crossover(const Route &parent1, const Route &parent2) {
     std::vector<City> childCities = parent1.cities;
@@ -106,13 +109,17 @@ Route crossover(const Route &parent1, const Route &parent2) {
 
 // This function mutates a route in the population by swapping two cities at random with a given mutation rate.
 void mutate(Route &route) {
+    // Initialize random seed once
+    unsigned seed = static_cast<unsigned>(time(nullptr));
+
     #pragma omp parallel
     {
-        // Initialize random seed for each thread
-        unsigned seed = static_cast<unsigned>(time(nullptr)) ^ omp_get_thread_num();
-        // Loop over each city in the route, with OpenMP parallelization
-        #pragma omp for
-        for (size_t i = 0; i < route.cities.size(); ++i) {
+        // Calculate the starting index for the thread
+        size_t start = omp_get_thread_num() * route.cities.size() / omp_get_num_threads();
+        // Calculate the ending index for the thread
+        size_t end = (omp_get_thread_num() + 1) * route.cities.size() / omp_get_num_threads();
+        // Loop over each city in the route for this thread
+        for (size_t i = start; i < end; ++i) {
             // If a random number is less than the mutation rate, mutate the city
             if (rand_r(&seed) / static_cast<double>(RAND_MAX) < MUTATION_RATE) {
                 // Select a random city to swap with
@@ -125,6 +132,7 @@ void mutate(Route &route) {
     // Recalculate fitness after mutation
     route.calculateFitness();
 }
+
 
 int main() {
 
