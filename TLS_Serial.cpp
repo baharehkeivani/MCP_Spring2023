@@ -158,6 +158,13 @@ int main() {
             {80,  120},
             {120, 120},
             {160, 120},
+            {200, 10},
+            {140, 50},
+            {160, 50},
+            {50, 120},
+            {10, 120},
+            {40, 10},
+            {160, 10},
     };
     // Initialize a vector of Route objects with the initial population
     std::vector<Route> population = initializePopulation(cities);

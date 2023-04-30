@@ -60,18 +60,31 @@ public:
 };
 
 // Function to initialize a population of random routes
+//std::vector<Route> initializePopulation(const std::vector<City> &cities) {
+//    std::vector<Route> population;
+//    population.reserve(POPULATION_SIZE); // Optional: reserve memory for the vector
+//    #pragma omp parallel for
+//    // Loop to create a population of random routes
+//    for (int i = 0; i < POPULATION_SIZE; ++i) {
+//        // Declare a private copy of shuffledCities for each thread
+//        std::vector<City> shuffledCities = cities;
+//        // Randomly shuffle the cities
+//        std::shuffle(shuffledCities.begin(), shuffledCities.end(), std::mt19937_64(std::random_device()()));
+//        // Add the shuffled cities to the population
+//        population.emplace_back(Route(shuffledCities));
+//    }
+//    return population;
+//}
+
 std::vector<Route> initializePopulation(const std::vector<City> &cities) {
     std::vector<Route> population;
-    population.reserve(POPULATION_SIZE); // Optional: reserve memory for the vector
-    #pragma omp parallel for
     // Loop to create a population of random routes
     for (int i = 0; i < POPULATION_SIZE; ++i) {
-        // Declare a private copy of shuffledCities for each thread
         std::vector<City> shuffledCities = cities;
         // Randomly shuffle the cities
-        std::shuffle(shuffledCities.begin(), shuffledCities.end(), std::mt19937_64(std::random_device()()));
+        std::shuffle(shuffledCities.begin(), shuffledCities.end(), std::mt19937(std::random_device()()));
         // Add the shuffled cities to the population
-        population.emplace_back(Route(shuffledCities));
+        population.emplace_back(shuffledCities);
     }
     return population;
 }
@@ -137,7 +150,7 @@ void mutate(Route &route) {
 int main() {
 
     // Set the number of threads to be used in the next parallel region
-    omp_set_num_threads(7);
+    omp_set_num_threads(4);
 
     // Starting the timer
     auto start = std::chrono::high_resolution_clock::now();
@@ -190,6 +203,13 @@ int main() {
             {80,  120},
             {120, 120},
             {160, 120},
+            {200, 10},
+            {140, 50},
+            {160, 50},
+            {50, 120},
+            {10, 120},
+            {40, 10},
+            {160, 10},
     };
 
     // Create an initial population of routes
