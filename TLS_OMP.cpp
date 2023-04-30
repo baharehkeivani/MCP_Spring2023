@@ -59,23 +59,6 @@ public:
     }
 };
 
-// Function to initialize a population of random routes
-//std::vector<Route> initializePopulation(const std::vector<City> &cities) {
-//    std::vector<Route> population;
-//    population.reserve(POPULATION_SIZE); // Optional: reserve memory for the vector
-//    #pragma omp parallel for
-//    // Loop to create a population of random routes
-//    for (int i = 0; i < POPULATION_SIZE; ++i) {
-//        // Declare a private copy of shuffledCities for each thread
-//        std::vector<City> shuffledCities = cities;
-//        // Randomly shuffle the cities
-//        std::shuffle(shuffledCities.begin(), shuffledCities.end(), std::mt19937_64(std::random_device()()));
-//        // Add the shuffled cities to the population
-//        population.emplace_back(Route(shuffledCities));
-//    }
-//    return population;
-//}
-
 std::vector<Route> initializePopulation(const std::vector<City> &cities) {
     std::vector<Route> population;
     // Loop to create a population of random routes
